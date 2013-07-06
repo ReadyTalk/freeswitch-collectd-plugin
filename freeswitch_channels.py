@@ -40,7 +40,7 @@ FREESWITCH_CONNECT_FAIL = 0
 FREESWITCH_HOST = 'localhost'
 
 # Port to connect on. Override in config by specifying 'Port'.
-FREESWITCH_PORT = 5080
+FREESWITCH_PORT = '8021'
 
 # Password to connect with. Override in config by specifying 'Password'.
 FREESWITCH_PASSWORD = 'ClueCon'
@@ -50,19 +50,18 @@ VERBOSE_LOGGING = False
 
 def get_channels():
     """Connect to FreeSWITCH server and get channel count"""
-    try:
-        conn = ESL.ESLconnection(FREESWITCH_HOST, FREESWITCH_PORT, 
-            FREESWITCH_PASSWORD)
-        if conn.connected() == FREESWITCH_CONNECT_SUCCESS:
-            log_verbose('Connected to FreeSWITCH at %s:%s' 
-                % (FREESWITCH_HOST, FREESWITCH_PORT))
-        else:
-            collectd.error('freeswitch_channels: Error connecting to %s:%d'
-                       % (FREESWITCH_HOST, FREESWITCH_PORT))
-            return None
+    conn = ESL.ESLconnection(FREESWITCH_HOST, FREESWITCH_PORT, FREESWITCH_PASSWORD)
+    if conn.connected() == FREESWITCH_CONNECT_SUCCESS:
+        log_verbose('Connected to FreeSWITCH at %s:%s' 
+            % (FREESWITCH_HOST, FREESWITCH_PORT))
+    else:
+        collectd.error('freeswitch_channels: Error connecting to %s:%d'
+                   % (FREESWITCH_HOST, FREESWITCH_PORT))
+        return None
 
     log_verbose('Getting channel count')
     event = conn.api('show', 'channels count')
+    log_verbose('raw response body: %s' % event.getBody())
     num_channels_re = r'\n(?P<chans>\d+) total\.\n'
     reg = re.compile(num_channels_re)
     matches = reg.search(event.getBody())
@@ -75,7 +74,7 @@ def configure_callback(conf):
         if node.key == 'Host':
             FREESWITCH_HOST = node.values[0]
         elif node.key == 'Port':
-            FREESWITCH_PORT = int(node.values[0])
+            FREESWITCH_PORT = str(int(node.values[0]))
         elif node.key == 'Password':
             FREESWITCH_PASSWORD = node.values[0]
         elif node.key == 'Verbose':
@@ -89,15 +88,10 @@ def configure_callback(conf):
 def read_channels():
     log_verbose('Read callback called')
     channels = get_channels()
-
-    if not channels:
-        collectd.error('freeswitch channels: No info received')
-        return
-
     log_verbose('Sending value: %s=%s' % ("active_channels", channels))
 
     val = collectd.Values(plugin='freeswitch_channels', type='gauge')
-    val.dispatch(values=channels)
+    val.dispatch(values=[channels])
 
 def log_verbose(msg):
     if not VERBOSE_LOGGING:
