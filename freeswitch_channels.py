@@ -18,7 +18,7 @@
 #
 # About this plugin:
 #   This plugin uses collectd's Python plugin to record FreeSWITCH.
-#   Based on work by Garret Heaton 
+#   Based on work by Garret Heaton
 #     https://github.com/powdahound/redis-collectd-plugin
 #
 # collectd:
@@ -50,19 +50,23 @@ FREESWITCH_PASSWORD = 'works'
 # Verbose logging on/off. Override in config by specifying 'Verbose'.
 VERBOSE_LOGGING = False
 
+
 def get_channels():
     """Connect to FreeSWITCH server and get channel count"""
     log_verbose('Getting channel count')
 
-    server = ServerProxy("http://%s:%s@%s:%s"%(FREESWITCH_USERNAME, 
-        FREESWITCH_PASSWORD, FREESWITCH_HOST, FREESWITCH_PORT))
+    server = ServerProxy("http://%s:%s@%s:%s" % (FREESWITCH_USERNAME,
+                                                 FREESWITCH_PASSWORD,
+                                                 FREESWITCH_HOST,
+                                                 FREESWITCH_PORT))
 
-    channels = server.freeswitch.api("show","channels count")
+    channels = server.freeswitch.api("show", "channels count")
     log_verbose('Raw server response: %s' % channels)
     num_channels_re = r'\n(?P<chans>\d+) total\.\n'
     reg = re.compile(num_channels_re)
     matches = reg.search(channels)
     return int(matches.group("chans"))
+
 
 def configure_callback(conf):
     """Receive configuration block"""
@@ -82,8 +86,9 @@ def configure_callback(conf):
         else:
             collectd.warning('freeswitch_channels: Unknown config key: %s.'
                              % node.key)
-    log_verbose('Configured with host=%s, port=%s' 
-        % (FREESWITCH_HOST, FREESWITCH_PORT))
+    log_verbose('Configured with host=%s, port=%s'
+                % (FREESWITCH_HOST, FREESWITCH_PORT))
+
 
 def read_channels():
     log_verbose('Read callback called')
@@ -91,9 +96,13 @@ def read_channels():
 
     log_verbose('Sending value: %s=%s' % ("active_channels", channels))
 
-    val = collectd.Values(plugin='freeswitch_channels', type='gauge', type_instance='active_channels')
+    val = collectd.Values(
+        plugin='freeswitch_channels',
+        type='gauge',
+        type_instance='active_channels')
     val.host = FREESWITCH_HOST
     val.dispatch(values=[channels])
+
 
 def log_verbose(msg):
     if not VERBOSE_LOGGING:
