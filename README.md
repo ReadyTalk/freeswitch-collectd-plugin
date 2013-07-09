@@ -9,12 +9,9 @@ Data captured includes:
 
 Install
 -------
- 1. Install the FreeSWITCH Python ESL module 
-     - https://github.com/ReadyTalk/freeswitch-esl-python
-     - https://wiki.freeswitch.org/wiki/Python_ESL 
- 2. Place freeswitch_channels.py in /opt/collectd/lib/collectd/plugins/python (assuming you have collectd installed to /opt/collectd).
- 3. Configure the plugin (see below).
- 4. Restart collectd.
+ 1. Place freeswitch_channels.py in /opt/collectd/lib/collectd/plugins/python (assuming you have collectd installed to /opt/collectd).
+ 2. Configure the plugin (see below).
+ 3. Restart collectd.
 
 Configuration
 -------------
@@ -31,7 +28,8 @@ Add the following to your collectd config **or** use the included freeswitch.con
       <Module freeswitch_channels>
         Host "localhost"
         Port 8021
-        Password "password"
+        Username "freeswitch"
+        Password "works"
         Verbose false
       </Module>
     </Plugin>

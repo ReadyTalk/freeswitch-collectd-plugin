@@ -30,8 +30,7 @@
 
 import re
 import collectd
-
-from freeswitchESL import ESL 
+from xmlrpclib import ServerProxy
 
 FREESWITCH_CONNECT_SUCCESS = 1
 FREESWITCH_CONNECT_FAIL = 0
@@ -40,42 +39,42 @@ FREESWITCH_CONNECT_FAIL = 0
 FREESWITCH_HOST = 'localhost'
 
 # Port to connect on. Override in config by specifying 'Port'.
-FREESWITCH_PORT = 5080
+FREESWITCH_PORT = 8080
+
+# Username to connect with. Override in config by specifying 'Username'.
+FREESWITCH_USERNAME = 'freeswitch'
 
 # Password to connect with. Override in config by specifying 'Password'.
-FREESWITCH_PASSWORD = 'ClueCon'
+FREESWITCH_PASSWORD = 'works'
 
 # Verbose logging on/off. Override in config by specifying 'Verbose'.
 VERBOSE_LOGGING = False
 
 def get_channels():
     """Connect to FreeSWITCH server and get channel count"""
-    try:
-        conn = ESL.ESLconnection(FREESWITCH_HOST, FREESWITCH_PORT, 
-            FREESWITCH_PASSWORD)
-        if conn.connected() == FREESWITCH_CONNECT_SUCCESS:
-            log_verbose('Connected to FreeSWITCH at %s:%s' 
-                % (FREESWITCH_HOST, FREESWITCH_PORT))
-        else:
-            collectd.error('freeswitch_channels: Error connecting to %s:%d'
-                       % (FREESWITCH_HOST, FREESWITCH_PORT))
-            return None
-
     log_verbose('Getting channel count')
-    event = conn.api('show', 'channels count')
+
+    server = ServerProxy("http://%s:%s@%s:%s"%(FREESWITCH_USERNAME, 
+        FREESWITCH_PASSWORD, FREESWITCH_HOST, FREESWITCH_PORT))
+
+    channels = server.freeswitch.api("show","channels count")
+    log_verbose('Raw server response: %s' % channels)
     num_channels_re = r'\n(?P<chans>\d+) total\.\n'
     reg = re.compile(num_channels_re)
-    matches = reg.search(event.getBody())
+    matches = reg.search(channels)
     return int(matches.group("chans"))
 
 def configure_callback(conf):
     """Receive configuration block"""
-    global FREESWITCH_HOST, FREESWITCH_PORT, VERBOSE_LOGGING
+    global FREESWITCH_HOST, FREESWITCH_PORT, FREESWITCH_USERNAME
+    global FREESWITCH_PASSWORD, VERBOSE_LOGGING
     for node in conf.children:
         if node.key == 'Host':
             FREESWITCH_HOST = node.values[0]
         elif node.key == 'Port':
             FREESWITCH_PORT = int(node.values[0])
+        elif node.key == 'Username':
+            FREESWITCH_USERNAME = node.values[0]
         elif node.key == 'Password':
             FREESWITCH_PASSWORD = node.values[0]
         elif node.key == 'Verbose':
@@ -90,14 +89,11 @@ def read_channels():
     log_verbose('Read callback called')
     channels = get_channels()
 
-    if not channels:
-        collectd.error('freeswitch channels: No info received')
-        return
-
     log_verbose('Sending value: %s=%s' % ("active_channels", channels))
 
-    val = collectd.Values(plugin='freeswitch_channels', type='gauge')
-    val.dispatch(values=channels)
+    val = collectd.Values(plugin='freeswitch_channels', type='gauge', type_instance='active_channels')
+    val.host = FREESWITCH_HOST
+    val.dispatch(values=[channels])
 
 def log_verbose(msg):
     if not VERBOSE_LOGGING:
